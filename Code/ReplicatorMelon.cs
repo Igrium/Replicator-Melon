@@ -55,7 +55,9 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	public float Damage { get; set; } = 150;
 
 	[Property] public float JumpInterval { get; set; } = 2.5f;
-
+	
+	[Property] public SoundEvent? ImpactSound { get; set; }
+	
 	// Targeting
 	public GameObject? Target
 	{
@@ -178,6 +180,14 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 		copy.NetworkSpawn();
 
 		_timeSinceLastRep = 0;
+		PlayImpactSound();
+	}
+	
+	[Rpc.Broadcast]
+	private void PlayImpactSound()
+	{
+		if (ImpactSound != null)
+			Sound.Play( ImpactSound, GameObject.WorldPosition );
 	}
 
 	private void Move( Vector3 direction )

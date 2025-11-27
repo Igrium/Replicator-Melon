@@ -1,0 +1,38 @@
+{
+  "UI": false,
+  "Volume": "1.3",
+  "Pitch": "0.95 1.05",
+  "Decibels": 70,
+  "SelectionMode": "Random",
+  "Sounds": [
+    "sound/rep_slap.vsnd"
+  ],
+  "Occlusion": true,
+  "AirAbsorption": true,
+  "Transmission": true,
+  "OcclusionRadius": 64,
+  "DistanceAttenuation": true,
+  "Distance": 11786,
+  "Falloff": [
+    {
+      "x": 0,
+      "y": 1,
+      "in": 3.1415927,
+      "out": -3.1415927,
+      "mode": "Mirrored"
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "in": -0,
+      "out": -0,
+      "mode": "Mirrored"
+    }
+  ],
+  "DefaultMixer": {
+    "Name": "game",
+    "Id": "2ed4f078-8a00-4985-a373-a076082926a4"
+  },
+  "__references": [],
+  "__version": 1
+}

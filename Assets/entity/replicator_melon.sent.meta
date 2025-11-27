@@ -4,7 +4,7 @@
     "ProjectConfig": {
       "Title": "Replicator Melon",
       "Type": "sent",
-      "Org": "local",
+      "Org": "igrium",
       "Ident": "replicatormelon",
       "Schema": 0,
       "IncludeSourceFiles": false,
