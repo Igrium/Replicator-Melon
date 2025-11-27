@@ -118,10 +118,12 @@
         "__type": "ReplicatorMelon",
         "__guid": "2aa80fb3-450e-45d8-86c1-4804830984b0",
         "__enabled": true,
-        "BaseTorque": 15000000,
-        "CorrectionTorque": 30000,
+        "BaseTorque": 20000000,
+        "CorrectionTorque": 12000,
+        "Damage": 100,
         "JumpForce": 30000,
-        "JumpInterval": 2.5,
+        "JumpInterval": 3,
+        "LeapForce": 600,
         "MaxTargetRange": 4096,
         "OnComponentDestroy": null,
         "OnComponentDisabled": null,
@@ -129,7 +131,8 @@
         "OnComponentFixedUpdate": null,
         "OnComponentStart": null,
         "OnComponentUpdate": null,
-        "SelfKnockbackForce": 4096
+        "SelfKnockbackForce": 4096,
+        "TargetInterval": 3.5
       },
       {
         "__type": "Sandbox.NavMeshAgent",
