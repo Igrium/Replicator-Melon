@@ -1,0 +1,17 @@
+{
+  "Title": "Replicator Melons",
+  "Type": "addon",
+  "Org": "local",
+  "Ident": "replicator_melons",
+  "Schema": 1,
+  "IncludeSourceFiles": false,
+  "Resources": null,
+  "PackageReferences": [],
+  "EditorReferences": null,
+  "Mounts": null,
+  "IsStandaloneOnly": false,
+  "Metadata": {
+    "StartupScene": "scenes/sandbox.scene",
+    "ParentPackage": "facepunch.sandbox"
+  }
+}

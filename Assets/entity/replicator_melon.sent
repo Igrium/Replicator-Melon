@@ -1,0 +1,8 @@
+{
+  "Prefab": "entity/watermelon.prefab",
+  "Title": "Replicator Melon",
+  "Description": "You better run!",
+  "IncludeCode": true,
+  "__references": [],
+  "__version": 0
+}
