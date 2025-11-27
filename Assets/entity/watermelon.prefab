@@ -20,7 +20,7 @@
         "__guid": "2d1aee4c-a742-4871-82f0-e789073ed794",
         "__enabled": true,
         "BodyGroups": 18446744073709551615,
-        "Health": 2,
+        "Health": 100,
         "IsStatic": false,
         "MaterialGroup": null,
         "Model": "models/sbox_props/watermelon/watermelon.vmdl",
