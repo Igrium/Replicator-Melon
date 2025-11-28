@@ -8,7 +8,7 @@ using Sandbox.Diagnostics;
 public class ReplicatorMelon : Component, Component.ICollisionListener
 {
 	private static readonly Logger Log = new Logger( nameof(ReplicatorMelon) );
-	
+
 	private readonly Random _random = new();
 
 	// Constants
@@ -31,7 +31,7 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	/// <summary>
 	/// The base amount of torque to apply when moving the melon
 	/// </summary>
-	[Property]
+	[Property] [Sync]
 	public float BaseTorque { get; set; } = 20000000;
 
 	/// <summary>
@@ -39,7 +39,7 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	/// Lower values may cause the rollermine to orbit its target, and higher
 	/// values will make it beeline directly at it.
 	/// </summary>
-	[Property]
+	[Property] [Sync]
 	public float CorrectionTorque { get; set; } = 11500;
 
 	[Property] public float MaxTargetRange { get; set; } = 4096;
@@ -49,7 +49,8 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	/// <summary>
 	/// Applied to the melon each frame while it's jumping for "air-strafing"
 	/// </summary>
-	[Property] public float LeapForce { get; set; } = 600;
+	[Property]
+	public float LeapForce { get; set; } = 600;
 
 	/// <summary>
 	/// Applies an upward force to the melon when it wants to move up to avoid getting stuck on stairs
@@ -57,13 +58,16 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	[Property]
 	public float JumpForce { get; set; } = 50000;
 
-	[Property]
-	public float Damage { get; set; } = 150;
+	[Property] public float Damage { get; set; } = 150;
 
 	[Property] public float JumpInterval { get; set; } = 2f;
-	
+
 	[Property] public SoundEvent? ImpactSound { get; set; }
-	
+
+	[Sync] public Vector3 WishVelocity { get; set; }
+
+	[Sync] public Vector3 AdditionalForce { get; set; }
+
 	// Targeting
 	public GameObject? Target
 	{
@@ -91,53 +95,81 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	{
 		base.OnFixedUpdate();
 
-		if ( Network.IsProxy ) return;
-		if ( ShouldUpdateTarget() )
+		if ( !Network.IsProxy )
 		{
-			UpdateTarget();
-		}
-
-		Agent.SetAgentPosition( GameObject.WorldPosition );
-		if ( Agent.TargetPosition == null || _timeSinceGeneratedPath > PathUpdateInterval )
-		{
-			if ( Target != null )
+			if ( ShouldUpdateTarget() )
 			{
-				Agent.MoveTo( Target.WorldPosition );
-			}
-			else
-			{
-				Agent.Stop();
-			}
-
-			_timeSinceGeneratedPath = 0;
-		}
-
-		float jumpChance = Vector3.Dot( (Agent.GetLookAhead( 10 ) - GameObject.WorldPosition).Normal, Vector3.Up );
-		jumpChance = Math.Clamp( jumpChance * 5, 0f, 1f );
-		// Log.Info(jumpChance);
-
-		// === JUMP ===
-		if ( _timeSinceLastJumpAttempt > JumpInterval && !float.IsNaN(jumpChance) )
-		{
-			
-			float rand = (float)_random.NextDouble();
-			
-			if ( rand < jumpChance )
-			{
-				RigidBody.ApplyImpulse( new Vector3( 0, 0, JumpForce ) );
-				_timeSinceLastJump = 0;
+				UpdateTarget();
 			}
 			
-			// Randomize jump attempts
-			_timeSinceLastJumpAttempt = 0 + Remap((float)_random.NextDouble(), 0, 1, -1, 1) * .6f;
+			Agent.SetAgentPosition( GameObject.WorldPosition );
+			if ( Agent.TargetPosition == null || _timeSinceGeneratedPath > PathUpdateInterval )
+			{
+				if ( Target != null )
+				{
+					Agent.MoveTo( Target.WorldPosition );
+				}
+				else
+				{
+					Agent.Stop();
+				}
+
+				_timeSinceGeneratedPath = 0;
+			}
+			
+			float jumpChance = Vector3.Dot( (Agent.GetLookAhead( 10 ) - GameObject.WorldPosition).Normal, Vector3.Up );
+			jumpChance = Math.Clamp( jumpChance * 5, 0f, 1f );
+			// Log.Info(jumpChance);
+
+			// === JUMP ===
+			if ( _timeSinceLastJumpAttempt > JumpInterval && !float.IsNaN( jumpChance ) )
+			{
+				float rand = (float)_random.NextDouble();
+
+				if ( rand < jumpChance )
+				{
+					Jump(new Vector3(0, 0, JumpForce));
+				}
+
+				// Randomize jump attempts
+				_timeSinceLastJumpAttempt = 0 + Remap( (float)_random.NextDouble(), 0, 1, -1, 1 ) * .6f;
+			}
+			
+			AdditionalForce = _timeSinceLastJump < 1 ? Agent.WishVelocity * LeapForce : Vector3.Zero;
 		}
 
 		Move( Agent.WishVelocity.Normal );
-		// Also apply a force to help it in the air
-		if ( _timeSinceLastJump < 1 )
-		{
-			RigidBody.ApplyForce( Agent.WishVelocity * LeapForce );
-		}
+
+	}
+
+	[Rpc.Broadcast]
+	private void Jump( Vector3 velocity )
+	{
+		RigidBody.ApplyImpulse( velocity );
+		_timeSinceLastJump = 0;
+	}
+	
+	private void Move( Vector3 direction )
+	{
+		
+		direction.z = 0;
+
+		Vector2 normal2D = new Vector2( direction.x, direction.y );
+
+		var axis = direction.RotateAround( new Vector3( 0, 0, 0 ), Rotation.FromYaw( 90 ) );
+		float torque = BaseTorque * .6f;
+
+		RigidBody.ApplyTorque( axis * torque );
+
+		// Determine angle to account for existing velocity
+		Vector2 velocity2D = new Vector2( RigidBody.Velocity.x, RigidBody.Velocity.y );
+		float angle = MeasureAngle( velocity2D, normal2D );
+
+		float correctionMagnitude = velocity2D.Length * MathF.Sin( angle );
+
+		RigidBody.ApplyTorque( direction * correctionMagnitude * CorrectionTorque );
+		
+		RigidBody.ApplyForce(AdditionalForce);
 	}
 
 	private bool ShouldUpdateTarget()
@@ -174,6 +206,9 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 
 	public void OnCollisionStart( Collision collision )
 	{
+		if ( IsProxy )
+			return;
+		
 		GameObject other = collision.Other.GameObject;
 		if ( !other.Tags.Has( "player" ) )
 			return;
@@ -185,8 +220,8 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 
 		Vector3 knockback = collision.Contact.Normal * SelfKnockbackForce;
 		knockback.z = 20000;
-		Log.Info( knockback );
-		RigidBody.ApplyImpulse( knockback );
+		
+		CopyClient(knockback);
 		damageable.OnDamage( new DamageInfo( Damage, GameObject, GameObject ) );
 
 		var copy = GameObject.Clone();
@@ -197,35 +232,18 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 		copy.NetworkSpawn();
 
 		_timeSinceLastRep = 0;
-		PlayImpactSound();
 	}
-	
+
 	[Rpc.Broadcast]
-	private void PlayImpactSound()
+	private void CopyClient(Vector3 knockback)
 	{
-		if (ImpactSound != null)
+		Log.Trace( $"knokback: {knockback}" );
+		RigidBody.ApplyImpulse( knockback );
+		if ( ImpactSound != null )
 			Sound.Play( ImpactSound, GameObject.WorldPosition );
 	}
 
-	private void Move( Vector3 direction )
-	{
-		direction.z = 0;
-
-		Vector2 normal2D = new Vector2( direction.x, direction.y );
-
-		var axis = direction.RotateAround( new Vector3( 0, 0, 0 ), Rotation.FromYaw( 90 ) );
-		float torque = BaseTorque * .6f;
-
-		RigidBody.ApplyTorque( axis * torque );
-
-		// Determine angle to account for existing velocity
-		Vector2 velocity2D = new Vector2( RigidBody.Velocity.x, RigidBody.Velocity.y );
-		float angle = MeasureAngle( velocity2D, normal2D );
-
-		float correctionMagnitude = velocity2D.Length * MathF.Sin( angle );
-
-		RigidBody.ApplyTorque( direction * correctionMagnitude * CorrectionTorque );
-	}
+	
 
 	private static float MeasureAngle( Vector2 a, Vector2 b )
 	{
@@ -236,6 +254,6 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 
 	private static float Remap( float value, float low1, float low2, float high1, float high2 )
 	{
-		return low2 + (high2 - low2) * ((value - low1) / (high1 - low1)); 
+		return low2 + (high2 - low2) * ((value - low1) / (high1 - low1));
 	}
 }
