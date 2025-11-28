@@ -118,11 +118,11 @@
         "__type": "ReplicatorMelon",
         "__guid": "2aa80fb3-450e-45d8-86c1-4804830984b0",
         "__enabled": true,
-        "BaseTorque": 18000000,
-        "CorrectionTorque": 12000,
+        "BaseTorque": 20000000,
+        "CorrectionTorque": 10500,
         "Damage": 100,
         "ImpactSound": "sound/rep_slap.sound",
-        "JumpForce": 30000,
+        "JumpForce": 50000,
         "JumpInterval": 3,
         "LeapForce": 600,
         "MaxTargetRange": 4096,
@@ -153,7 +153,7 @@
         "OnComponentStart": null,
         "OnComponentUpdate": null,
         "Radius": 10,
-        "Separation": 0.25,
+        "Separation": 0.7583333,
         "UpdatePosition": false,
         "UpdateRotation": false
       }

@@ -8,6 +8,8 @@ using Sandbox.Diagnostics;
 public class ReplicatorMelon : Component, Component.ICollisionListener
 {
 	private static readonly Logger Log = new Logger( nameof(ReplicatorMelon) );
+	
+	private readonly Random _random = new();
 
 	// Constants
 	private const float PathUpdateInterval = .5f;
@@ -16,6 +18,7 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	private GameObject? _target;
 	private TimeSince _timeSinceGeneratedPath = 0;
 	private TimeSince _timeSinceLastJump;
+	private TimeSince _timeSinceLastJumpAttempt;
 
 	// Public state
 	public TimeSince LastTargetUpdate { get; private set; }
@@ -29,7 +32,7 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	/// The base amount of torque to apply when moving the melon
 	/// </summary>
 	[Property]
-	public float BaseTorque { get; set; } = 18000000;
+	public float BaseTorque { get; set; } = 20000000;
 
 	/// <summary>
 	/// The amount of torque to use while correcting for horizontal velocity.
@@ -37,24 +40,27 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 	/// values will make it beeline directly at it.
 	/// </summary>
 	[Property]
-	public float CorrectionTorque { get; set; } = 12000;
+	public float CorrectionTorque { get; set; } = 11500;
 
 	[Property] public float MaxTargetRange { get; set; } = 4096;
 
 	[Property] public float SelfKnockbackForce { get; set; } = 80000;
 
+	/// <summary>
+	/// Applied to the melon each frame while it's jumping for "air-strafing"
+	/// </summary>
 	[Property] public float LeapForce { get; set; } = 600;
 
 	/// <summary>
 	/// Applies an upward force to the melon when it wants to move up to avoid getting stuck on stairs
 	/// </summary>
 	[Property]
-	public float JumpForce { get; set; } = 45000;
+	public float JumpForce { get; set; } = 50000;
 
 	[Property]
 	public float Damage { get; set; } = 150;
 
-	[Property] public float JumpInterval { get; set; } = 2.5f;
+	[Property] public float JumpInterval { get; set; } = 2f;
 	
 	[Property] public SoundEvent? ImpactSound { get; set; }
 	
@@ -106,20 +112,31 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 			_timeSinceGeneratedPath = 0;
 		}
 
+		float jumpChance = Vector3.Dot( (Agent.GetLookAhead( 10 ) - GameObject.WorldPosition).Normal, Vector3.Up );
+		jumpChance = Math.Clamp( jumpChance * 5, 0f, 1f );
+		// Log.Info(jumpChance);
 
-		if ( _timeSinceLastJump > JumpInterval )
+		// === JUMP ===
+		if ( _timeSinceLastJumpAttempt > JumpInterval && !float.IsNaN(jumpChance) )
 		{
-			float finalJumpForce = JumpForce + MathF.Min( Agent.GetLookAhead( 10 ).z * 500, 0 );
-
-			RigidBody.ApplyImpulse( new Vector3( 0, 0, JumpForce ) );
-			_timeSinceLastJump = Random.Shared.Float() * 2 - 1;
+			
+			float rand = (float)_random.NextDouble();
+			
+			if ( rand < jumpChance )
+			{
+				RigidBody.ApplyImpulse( new Vector3( 0, 0, JumpForce ) );
+				_timeSinceLastJump = 0;
+			}
+			
+			// Randomize jump attempts
+			_timeSinceLastJumpAttempt = 0 + Remap((float)_random.NextDouble(), 0, 1, -1, 1) * .6f;
 		}
 
 		Move( Agent.WishVelocity.Normal );
 		// Also apply a force to help it in the air
-		if ( Target != null )
+		if ( _timeSinceLastJump < 1 )
 		{
-			RigidBody.ApplyForce( Agent.WishVelocity * (_timeSinceLastJump < 1 ? LeapForce : 0) );
+			RigidBody.ApplyForce( Agent.WishVelocity * LeapForce );
 		}
 	}
 
@@ -215,5 +232,10 @@ public class ReplicatorMelon : Component, Component.ICollisionListener
 		float angleA = MathF.Atan2( a.y, a.x );
 		float angleB = MathF.Atan2( b.y, b.x );
 		return angleA - angleB;
+	}
+
+	private static float Remap( float value, float low1, float low2, float high1, float high2 )
+	{
+		return low2 + (high2 - low2) * ((value - low1) / (high1 - low1)); 
 	}
 }
